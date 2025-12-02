@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ERP — Full ER Diagram (Mermaid)</title>
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 0; padding: 0; background: #0f172a; color: #e6eef8; }
+    header { background: linear-gradient(90deg,#0ea5a4,#7c3aed); padding: 12px 20px; box-shadow: 0 4px 18px rgba(0,0,0,0.35); }
+    header h1 { margin: 0; font-size: 18px; color: white; }
+    main { padding: 18px; }
+    .note { margin: 8px 0 18px; font-size: 13px; color:#cfe9ff; }
+    .mermaid-wrap { background: white; border-radius: 8px; padding: 12px; }
+    .controls { margin-bottom: 12px; }
+    button { padding: 8px 10px; margin-right: 8px; border-radius:6px; border: none; cursor: pointer; }
+    button.primary { background: #0ea5a4; color: white; }
+    button.ghost { background: #e6eef8; color:#0f172a; }
+    footer { margin-top: 16px; color:#9fb7d9; font-size:13px; }
+    pre.small { font-size:12px; color:#bfdcff; background:transparent; border-left:4px solid #0ea5a4; padding:8px 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ERP — Full ER Diagram (Mermaid)</h1>
+  </header>
+  <main>
+    <p class="note">Большая диаграмма (enterprise-level). Если рендерит долго — подожди пару секунд. Можно использовать "Zoom" в браузере для удобства просмотра.</p>
+
+    <div class="controls">
+      <button class="primary" onclick="download()">Скачать HTML</button>
+      <button class="ghost" onclick="toggleTheme()">Переключить фон</button>
+    </div>
+
+    <div class="mermaid-wrap">
+      <!-- Mermaid diagram -->
+      <div class="mermaid">
+erDiagram
+    %% =========================
+    %% Users / Auth / ACL
+    %% =========================
+    APP_USERS {
+      bigint id PK
+      text username
+      text email
+      text full_name
+    }
+    ROLES {
+      smallserial id PK
+      text code
+      text name
+    }
+    USER_ROLES {
+      bigint id PK
+      bigint user_id FK
+      smallint role_id FK
+      bigint project_id FK
+    }
+    ACCESS_GROUPS {
+      smallserial id PK
+      text code
+      text name
+    }
+    GROUP_PERMISSIONS {
+      bigint id PK
+      smallint group_id FK
+      text model_name
+      boolean perm_read
+    }
+    USER_GROUP_MEMBERSHIP {
+      bigint id PK
+      bigint user_id FK
+      smallint group_id FK
+      bigint project_id FK
+    }
+    PERMISSIONS ||--o{ ROLE_PERMISSION : maps
+    ROLES ||--o{ ROLE_PERMISSION : has
+    APP_USERS ||--o{ USER_ROLES : "has"
+    ROLES ||--o{ USER_ROLES : "assigned"
+    ACCESS_GROUPS ||--o{ USER_GROUP_MEMBERSHIP : "members"
+    APP_USERS ||--o{ USER_GROUP_MEMBERSHIP : "member"
+    ACCESS_GROUPS ||--o{ GROUP_PERMISSIONS : "defines"
+
+
+    %% =========================
+    %% Projects / Calendar / Baseline
+    %% =========================
+    PROJECT_CALENDAR {
+      bigint id PK
+      text name
+      text tz
+    }
+    CONSTRUCTION_PROJECT {
+      bigint id PK
+      text name
+      text code
+      date start_date
+      date finish_date
+      numeric budget_total
+      text currency_code
+    }
+    PROJECT_BASELINE {
+      bigint id PK
+      bigint project_id FK
+      text name
+      timestamp created_at
+    }
+    BASELINE_WBS {
+      bigint id PK
+      bigint baseline_id FK
+      bigint wbs_id FK
+    }
+    BASELINE_TASK {
+      bigint id PK
+      bigint baseline_id FK
+      bigint task_id FK
+    }
+
+    PROJECT_CALENDAR ||--o{ CONSTRUCTION_PROJECT : calendar
+    CONSTRUCTION_PROJECT ||--o{ PROJECT_BASELINE : has
+    PROJECT_BASELINE ||--o{ BASELINE_WBS : includes
+    PROJECT_BASELINE ||--o{ BASELINE_TASK : includes
+
+
+    %% =========================
+    %% WBS / Hierarchy
+    %% =========================
+    CONSTRUCTION_WBS {
+      bigint id PK
+      bigint project_id FK
+      bigint parent_id FK
+      text code
+      text name
+      int level
+      bigint responsible_id FK
+    }
+    CONSTRUCTION_PROJECT ||--o{ CONSTRUCTION_WBS : "has"
+    CONSTRUCTION_WBS ||--o{ CONSTRUCTION_WBS : "children"
+    CONSTRUCTION_WBS ||--o{ CONSTRUCTION_TASK : "has tasks"
+
+
+    %% =========================
+    %% Tasks / CPM / Dependencies / Resources
+    %% =========================
+    CONSTRUCTION_TASK {
+      bigint id PK
+      bigint project_id FK
+      bigint wbs_id FK
+      text code
+      text name
+      numeric duration
+      date planned_start
+      date planned_finish
+      date actual_start
+      date actual_finish
+      timestamp es
+      timestamp ef
+      timestamp ls
+      timestamp lf
+      numeric float_total
+      numeric percent_complete
+      bigint contractor_id FK
+      text state
+    }
+    TASK_DEPENDENCY {
+      bigint id PK
+      bigint project_id FK
+      bigint predecessor_id FK
+      bigint successor_id FK
+      text type
+      numeric lag
+    }
+    RESOURCE {
+      bigint id PK
+      text name
+      text resource_type
+      text unit
+    }
+    TASK_RESOURCE {
+      bigint id PK
+      bigint task_id FK
+      bigint resource_id FK
+      numeric qty
+      numeric rate
+    }
+    CONSTRUCTION_TASK ||--o{ TASK_DEPENDENCY : "predecessor"
+    CONSTRUCTION_TASK ||--o{ TASK_DEPENDENCY : "successor"
+    CONSTRUCTION_TASK ||--o{ TASK_RESOURCE : "uses"
+    RESOURCE ||--o{ TASK_RESOURCE : "assigned"
+
+
+    %% =========================
+    %% Budget / Cost / Financials
+    %% =========================
+    BUDGET_CATEGORY {
+      bigint id PK
+      text code
+      text name
+    }
+    BUDGET_VERSION {
+      bigint id PK
+      bigint project_id FK
+      text name
+      timestamp created_at
+    }
+    CONSTRUCTION_BUDGET_LINE {
+      bigint id PK
+      bigint project_id FK
+      bigint wbs_id FK
+      bigint budget_version_id FK
+      text name
+      numeric quantity
+      text unit
+      numeric price
+      numeric amount
+      numeric cost_index
+      numeric adjusted_amount
+      text status
+    }
+    COST_INDEX_HISTORY {
+      bigint id PK
+      bigint project_id FK
+      numeric index_value
+      timestamp applied_at
+      bigint applied_by
+    }
+
+    CONSTRUCTION_PROJECT ||--o{ CONSTRUCTION_BUDGET_LINE : "has budget lines"
+    BUDGET_VERSION ||--o{ CONSTRUCTION_BUDGET_LINE : "version"
+    BUDGET_CATEGORY ||--o{ CONSTRUCTION_BUDGET_LINE : "category"
+    CONSTRUCTION_PROJECT ||--o{ COST_INDEX_HISTORY : "history"
+
+
+    %% =========================
+    %% Acts / AVR / Workflow
+    %% =========================
+    CONSTRUCTION_ACT {
+      bigint id PK
+      bigint project_id FK
+      bigint contractor_id FK
+      bigint wbs_id FK
+      bigint task_id FK
+      numeric amount
+      text status
+      bigint created_by
+      timestamp created_at
+    }
+    ACT_APPROVER {
+      bigint id PK
+      bigint act_id FK
+      bigint approver_id FK
+      smallint seq
+      timestamp approved_at
+      text decision
+      text comment
+    }
+    WORKFLOW_SCHEME {
+      bigint id PK
+      text code
+      text name
+    }
+    WORKFLOW_STEP {
+      bigint id PK
+      bigint scheme_id FK
+      text name
+      smallint sequence
+    }
+    WORKFLOW_INSTANCE {
+      bigint id PK
+      bigint scheme_id FK
+      bigint object_id
+      text object_type
+      text state
+    }
+    CONSTRUCTION_PROJECT ||--o{ CONSTRUCTION_ACT : "has acts"
+    CONSTRUCTION_ACT ||--o{ ACT_APPROVER : "approvers"
+    WORKFLOW_SCHEME ||--o{ WORKFLOW_STEP : "steps"
+    WORKFLOW_SCHEME ||--o{ WORKFLOW_INSTANCE : "instances"
+
+
+    %% =========================
+    %% Documents / DMS
+    %% =========================
+    DOCUMENT_TYPE {
+      bigint id PK
+      text code
+      text name
+    }
+    CONSTRUCTION_DOCUMENT {
+      bigint id PK
+      text title
+      bigint doc_type_id FK
+      bigint created_by FK
+      text status
+      text reference
+    }
+    DOCUMENT_VERSION {
+      bigint id PK
+      bigint document_id FK
+      int version
+      boolean is_current
+      text file_path
+      timestamp created_at
+      bigint created_by
+    }
+    DOCUMENT_LINK {
+      bigint id PK
+      bigint document_id FK
+      bigint project_id FK
+      bigint wbs_id FK
+      bigint task_id FK
+      bigint act_id FK
+    }
+    DOCUMENT_TAG {
+      bigint id PK
+      text tag
+    }
+    DOCUMENT_TAG_MAP {
+      bigint id PK
+      bigint document_id FK
+      bigint tag_id FK
+    }
+
+    CONSTRUCTION_DOCUMENT ||--o{ DOCUMENT_VERSION : "versions"
+    CONSTRUCTION_DOCUMENT ||--o{ DOCUMENT_LINK : "links"
+    DOCUMENT_TAG ||--o{ DOCUMENT_TAG_MAP : "maps"
+    CONSTRUCTION_DOCUMENT ||--o{ DOCUMENT_TAG_MAP : "tagged"
+
+
+    %% =========================
+    %% Field reports / Mobile / Photos
+    %% =========================
+    FIELD_REPORT_TEMPLATE {
+      bigint id PK
+      text name
+      jsonb schema
+    }
+    CONSTRUCTION_FIELD_REPORT {
+      bigint id PK
+      bigint project_id FK
+      bigint task_id FK
+      date date
+      numeric executed_quantity
+      numeric percent
+      text weather
+      bigint crew_id
+      text status
+      bigint created_by
+    }
+    FIELD_REPORT_ITEM {
+      bigint id PK
+      bigint report_id FK
+      text key
+      numeric value
+      text unit
+    }
+    FIELD_PHOTO {
+      bigint id PK
+      bigint report_id FK
+      text file_path
+      jsonb meta
+    }
+    CONSTRUCTION_FIELD_REPORT ||--o{ FIELD_REPORT_ITEM : "items"
+    CONSTRUCTION_FIELD_REPORT ||--o{ FIELD_PHOTO : "photos"
+    FIELD_REPORT_TEMPLATE ||--o{ CONSTRUCTION_FIELD_REPORT : "template"
+
+
+    %% =========================
+    %% Procurement / Quotes / Orders / Warehouse / Stock
+    %% =========================
+    PROCUREMENT_REQUEST {
+      bigint id PK
+      bigint project_id FK
+      text ref
+      text description
+      text status
+      bigint requested_by
+    }
+    PROCUREMENT_REQUEST_ITEM {
+      bigint id PK
+      bigint request_id FK
+      bigint estimate_item_id FK
+      numeric qty
+      text unit
+      numeric est_price
+    }
+    PROCUREMENT_QUOTE {
+      bigint id PK
+      bigint request_id FK
+      bigint supplier_id FK
+      numeric total_amount
+      date delivery_date
+    }
+    PROCUREMENT_QUOTE_ITEM {
+      bigint id PK
+      bigint quote_id FK
+      bigint item_id FK
+      numeric qty
+      numeric price
+    }
+    PROCUREMENT_ORDER {
+      bigint id PK
+      bigint quote_id FK
+      text po_number
+      date expected_delivery
+      text status
+    }
+    WAREHOUSE {
+      bigint id PK
+      text name
+      text location
+    }
+    WAREHOUSE_ITEM {
+      bigint id PK
+      bigint warehouse_id FK
+      bigint estimate_item_id FK
+      numeric qty
+    }
+    STOCK_RECEIPT {
+      bigint id PK
+      bigint warehouse_id FK
+      date received_at
+      text ref
+    }
+    STOCK_TRANSFER {
+      bigint id PK
+      bigint from_warehouse FK
+      bigint to_warehouse FK
+      date transferred_at
+    }
+
+    PROCUREMENT_REQUEST ||--o{ PROCUREMENT_REQUEST_ITEM : "items"
+    PROCUREMENT_REQUEST ||--o{ PROCUREMENT_QUOTE : "quotes"
+    PROCUREMENT_QUOTE ||--o{ PROCUREMENT_QUOTE_ITEM : "quote items"
+    PROCUREMENT_QUOTE ||--o{ PROCUREMENT_ORDER : "orders"
+    WAREHOUSE ||--o{ WAREHOUSE_ITEM : "items"
+    WAREHOUSE ||--o{ STOCK_RECEIPT : "receipts"
+    STOCK_TRANSFER ||--o{ WAREHOUSE : "transfer"
+
+
+    %% =========================
+    %% Catalogs / Estimates / Materials / Price lists
+    %% =========================
+    ESTIMATE_ITEM {
+      bigint id PK
+      text code
+      text name
+      text unit
+      numeric base_price
+      text category
+    }
+    PRICE_LIST {
+      bigint id PK
+      text name
+      date valid_from
+      date valid_to
+    }
+    PRICE_LIST_ITEM {
+      bigint id PK
+      bigint price_list_id FK
+      bigint estimate_item_id FK
+      numeric price
+    }
+
+    ESTIMATE_ITEM ||--o{ PRICE_LIST_ITEM : "priced"
+    PRICE_LIST ||--o{ PRICE_LIST_ITEM : "contains"
+
+
+    %% =========================
+    %% Contractor Portal / Submissions
+    %% =========================
+    CONTRACTOR_USER {
+      bigint id PK
+      bigint partner_id FK
+      bigint user_id FK
+      text role
+    }
+    CONTRACTOR_SUBMISSION {
+      bigint id PK
+      bigint contractor_user_id FK
+      bigint project_id FK
+      bigint act_id FK
+      text status
+      timestamp submitted_at
+    }
+    CONTRACTOR_KPI {
+      bigint id PK
+      bigint contractor_id FK
+      bigint project_id FK
+      text key
+      numeric value
+    }
+
+    PARTNERS ||--o{ CONTRACTOR_USER : "has"
+    CONTRACTOR_USER ||--o{ CONTRACTOR_SUBMISSION : "submits"
+    PARTNERS ||--o{ CONTRACTOR_KPI : "kpi"
+
+
+    %% =========================
+    %% Dashboards / KPI / Jobs / Audit / Notifications
+    %% =========================
+    DASHBOARD_KPI {
+      bigint id PK
+      bigint project_id FK
+      text role_code
+      text key
+      numeric value
+      timestamp computed_at
+    }
+    BACKGROUND_JOB {
+      uuid id PK
+      text job_type
+      jsonb payload
+      text status
+      timestamp created_at
+    }
+    JOB_RETRY_LOG {
+      bigint id PK
+      uuid job_id FK
+      int attempt_no
+      text message
+      timestamp tried_at
+    }
+    EVENT_LOG {
+      bigint id PK
+      text event_type
+      jsonb payload
+      timestamp created_at
+    }
+    AUDIT_LOG {
+      bigint id PK
+      text model_name
+      bigint record_id
+      bigint actor_id
+      text action
+      jsonb meta
+      timestamp created_at
+    }
+    NOTIFICATION {
+      bigint id PK
+      bigint user_id FK
+      text channel
+      text title
+      text body
+      boolean seen
+      timestamp created_at
+    }
+
+    BACKGROUND_JOB ||--o{ JOB_RETRY_LOG : retries
+    EVENT_LOG ||--o{ AUDIT_LOG : "audit"
+    APP_USERS ||--o{ NOTIFICATION : "receives"
+    CONSTRUCTION_PROJECT ||--o{ DASHBOARD_KPI : "kpis"
+
+
+    %% =========================
+    %% Inspections / Quality / Safety
+    %% =========================
+    INSPECTION {
+      bigint id PK
+      bigint project_id FK
+      text code
+      date date
+      bigint inspector_id FK
+      text status
+    }
+    INSPECTION_ITEM {
+      bigint id PK
+      bigint inspection_id FK
+      text description
+      text result
+    }
+    INSPECTION_PHOTO {
+      bigint id PK
+      bigint inspection_id FK
+      text file_path
+    }
+    CONSTRUCTION_PROJECT ||--o{ INSPECTION : "inspections"
+    INSPECTION ||--o{ INSPECTION_ITEM : "items"
+    INSPECTION ||--o{ INSPECTION_PHOTO : "photos"
+
+
+    %% =========================
+    %% Settings / Tenants / Multi-project helpers
+    %% =========================
+    SYSTEM_SETTING {
+      bigint id PK
+      text key
+      jsonb value
+      text scope
+    }
+    TENANT {
+      bigint id PK
+      text code
+      text name
+    }
+    TENANT ||--o{ CONSTRUCTION_PROJECT : "owns"
+    SYSTEM_SETTING ||--o{ TENANT : "scoped"
+
+
+    %% =========================
+    %% Activity / Chatter (Comments & Attachments)
+    %% =========================
+    ACTIVITY_LOG {
+      bigint id PK
+      text model_name
+      bigint record_id
+      bigint author_id
+      text body
+      jsonb metadata
+      timestamp created_at
+    }
+    ATTACHMENT {
+      bigint id PK
+      text file_name
+      text file_path
+      bigint uploaded_by
+      timestamp uploaded_at
+    }
+    CONSTRUCTION_DOCUMENT ||--o{ ATTACHMENT : "has"
+    ACTIVITY_LOG ||--o{ ATTACHMENT : "attachments"
+    APP_USERS ||--o{ ACTIVITY_LOG : "authors"
+
+
+    %% =========================
+    %% End of ER Diagram
+    %% =========================
+      </div>
+    </div>
+
+    <footer>
+      <p>Подсказка: если диаграмма слишком большая для рендера в браузере, открой файл в VS Code + расширение "Mermaid Preview" или вставь в online Mermaid Live Editor.</p>
+      <pre class="small">Если нужен экспорт в PNG/SVG — нажми правой кнопкой на SVG (после отрисовки) и сохрани как...</pre>
+    </footer>
+  </main>
+
+  <!-- Mermaid CDN -->
+  <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+
+    function download() {
+      const html = document.documentElement.outerHTML;
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'erp_full_erd.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    let dark = true;
+    function toggleTheme() {
+      dark = !dark;
+      document.body.style.background = dark ? '#0f172a' : '#ffffff';
+      document.body.style.color = dark ? '#e6eef8' : '#0f172a';
+      // adjust mermaid theme (re-render)
+      mermaid.initialize({ startOnLoad: false, theme: dark ? 'default' : 'forest', securityLevel: 'loose' });
+      document.querySelectorAll('.mermaid').forEach(el => {
+        const txt = el.textContent;
+        el.innerHTML = txt;
+      });
+      mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+    }
+  </script>
+</body>
+</html>
+ 
